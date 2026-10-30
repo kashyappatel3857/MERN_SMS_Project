@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+
+# Local database storage (WiredTiger files, logs)
+backend/data/
+data/
+*.wt
+*.lock
+*.log
+
+# Production build outputs
+dist/
+dist-ssr/
+frontend/dist/
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# npm / cache
+.npm/
+.eslintcache
+

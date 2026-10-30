@@ -1,0 +1,23 @@
+{
+  "name": "student-attendance-management-system",
+  "version": "1.0.0",
+  "description": "Student Attendance Management System built with MongoDB, Express.js, React.js (Vite), and Node.js (MERN Stack)",
+  "scripts": {
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "seed": "cd backend && npm run seed",
+    "seed:destroy": "cd backend && npm run seed:destroy",
+    "build:frontend": "cd frontend && npm run build"
+  },
+  "keywords": [
+    "mern",
+    "mongodb",
+    "express",
+    "react",
+    "nodejs",
+    "attendance-management"
+  ],
+  "author": "",
+  "license": "MIT"
+}
+
