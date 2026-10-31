@@ -1,14 +1,6 @@
 const Attendance = require('../models/Attendance');
 const Student = require('../models/Student');
-
-// Helper to format date as YYYY-MM-DD in local/server time
-const getTodayFormatted = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+const { getTodayFormatted, escapeRegex, isValidMonth, isValidDate } = require('../utils/dateHelper');
 
 // @desc    Save or update attendance (single or batch)
 // @route   POST /api/attendance
@@ -23,6 +15,13 @@ const saveAttendance = async (req, res, next) => {
         return res.status(400).json({
           success: false,
           message: 'Date is required for batch attendance submission.',
+        });
+      }
+
+      if (!isValidDate(date)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid date format (expected YYYY-MM-DD).',
         });
       }
 
@@ -79,6 +78,13 @@ const saveAttendance = async (req, res, next) => {
       });
     }
 
+    if (!isValidDate(date)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format (expected YYYY-MM-DD).',
+      });
+    }
+
     if (!['Present', 'Absent'].includes(status)) {
       return res.status(400).json({
         success: false,
@@ -119,17 +125,19 @@ const getAttendance = async (req, res, next) => {
     if (department && department !== 'All') studentFilter.department = department;
     if (semester && semester !== 'All') studentFilter.semester = semester;
 
-    let targetStudentIds = null;
     if (Object.keys(studentFilter).length > 0) {
       const students = await Student.find(studentFilter).select('_id');
-      targetStudentIds = students.map((s) => s._id);
+      const targetStudentIds = students.map((s) => s._id);
       query.studentId = query.studentId ? query.studentId : { $in: targetStudentIds };
     }
 
+    const allowedSortFields = ['date', 'status', 'createdAt'];
+    const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'date';
     const sortOrder = order === 'asc' ? 1 : -1;
+
     const records = await Attendance.find(query)
       .populate('studentId', 'name enrollmentNo department semester email phone')
-      .sort({ [sortBy]: sortOrder });
+      .sort({ [safeSortBy]: sortOrder });
 
     res.status(200).json({
       success: true,
@@ -186,12 +194,19 @@ const getDailyAttendance = async (req, res, next) => {
     const targetDate = req.query.date || getTodayFormatted();
     const { department, semester, search } = req.query;
 
+    if (req.query.date && !isValidDate(req.query.date)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format (expected YYYY-MM-DD).',
+      });
+    }
+
     const studentFilter = {};
     if (department && department !== 'All') studentFilter.department = department;
     if (semester && semester !== 'All') studentFilter.semester = semester.toString();
 
     if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
+      const searchRegex = new RegExp(escapeRegex(search.trim()), 'i');
       studentFilter.$or = [{ name: searchRegex }, { enrollmentNo: searchRegex }];
     }
 
@@ -232,24 +247,32 @@ const getDailyAttendance = async (req, res, next) => {
     let absentCount = 0;
     let unmarkedCount = 0;
 
-    const combinedList = students.map((student) => {
-      const attendance = attendanceMap.get(student._id.toString());
-      const status = attendance ? attendance.status : null;
+    const mergedSheet = students.map((student) => {
+      const studentIdStr = student._id.toString();
+      const att = attendanceMap.get(studentIdStr);
 
-      if (status === 'Present') presentCount++;
-      else if (status === 'Absent') absentCount++;
-      else unmarkedCount++;
+      let status = null;
+      let attendanceId = null;
+
+      if (att) {
+        status = att.status;
+        attendanceId = att._id;
+        if (status === 'Present') presentCount++;
+        if (status === 'Absent') absentCount++;
+      } else {
+        unmarkedCount++;
+      }
 
       return {
         _id: student._id,
-        attendanceId: attendance ? attendance._id : null,
         name: student.name,
         enrollmentNo: student.enrollmentNo,
-        email: student.email,
-        phone: student.phone,
         department: student.department,
         semester: student.semester,
-        status: status, // 'Present', 'Absent', or null
+        email: student.email,
+        phone: student.phone,
+        status, // 'Present', 'Absent', or null
+        attendanceId,
       };
     });
 
@@ -262,14 +285,14 @@ const getDailyAttendance = async (req, res, next) => {
         absentCount,
         unmarkedCount,
       },
-      data: combinedList,
+      data: mergedSheet,
     });
   } catch (error) {
     next(error);
   }
 };
 
-// @desc    Get monthly attendance overview
+// @desc    Get monthly attendance statistics and daily trends
 // @route   GET /api/attendance/monthly
 // @access  Public
 const getMonthlyAttendance = async (req, res, next) => {
@@ -277,6 +300,13 @@ const getMonthlyAttendance = async (req, res, next) => {
     const today = getTodayFormatted();
     const currentMonthPrefix = today.substring(0, 7); // 'YYYY-MM'
     const targetMonth = req.query.month || currentMonthPrefix; // 'YYYY-MM'
+
+    if (!isValidMonth(targetMonth)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid month format (expected YYYY-MM).',
+      });
+    }
 
     const { department, semester } = req.query;
 
@@ -288,7 +318,7 @@ const getMonthlyAttendance = async (req, res, next) => {
     const studentIds = students.map((s) => s._id);
 
     // Regex for date starting with targetMonth (e.g. ^2026-10)
-    const monthRegex = new RegExp(`^${targetMonth}`);
+    const monthRegex = new RegExp(`^${escapeRegex(targetMonth)}`);
 
     const records = await Attendance.find({
       date: { $regex: monthRegex },
@@ -327,4 +357,3 @@ module.exports = {
   getDailyAttendance,
   getMonthlyAttendance,
 };
-

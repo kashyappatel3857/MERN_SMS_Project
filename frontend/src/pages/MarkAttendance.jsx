@@ -15,17 +15,10 @@ import {
 import { attendanceService } from '../services/api';
 import Loader from '../components/Loader';
 import Notification from '../components/Notification';
-
-const DEPARTMENTS = [
-  'All',
-  'Computer Science',
-  'Information Technology',
-  'Electronics',
-  'Mechanical',
-  'Civil',
-];
-
-const SEMESTERS = ['All', '1', '2', '3', '4', '5', '6', '7', '8'];
+import {
+  DEPARTMENTS_WITH_ALL,
+  SEMESTERS_WITH_ALL,
+} from '../constants/academic';
 
 const getTodayString = () => {
   const now = new Date();
@@ -43,6 +36,7 @@ const MarkAttendance = () => {
 
   const [students, setStudents] = useState([]);
   const [attendanceState, setAttendanceState] = useState({}); // { [studentId]: 'Present' | 'Absent' }
+  const [initialServerState, setInitialServerState] = useState({}); // Baseline from database
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -67,6 +61,7 @@ const MarkAttendance = () => {
           }
         });
         setAttendanceState(initialStatus);
+        setInitialServerState(initialStatus);
       }
     } catch (err) {
       console.error('Error fetching attendance sheet:', err);
@@ -117,12 +112,12 @@ const MarkAttendance = () => {
     });
   };
 
-  // Reset unmarked in view
+  // Reset to initial server loaded state
   const handleReset = () => {
-    setAttendanceState({});
+    setAttendanceState({ ...initialServerState });
     setNotification({
       type: 'info',
-      message: 'Cleared attendance selections for this session.',
+      message: 'Reverted attendance selections to the saved database state.',
     });
   };
 
@@ -209,7 +204,7 @@ const MarkAttendance = () => {
           <button
             onClick={handleSaveAttendance}
             disabled={saving || loading || filteredStudents.length === 0}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-sm shadow-blue-500/20 transition disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-sm shadow-blue-500/20 transition disabled:opacity-50 cursor-pointer"
           >
             <Save className="w-4 h-4" />
             {saving ? 'Saving to Database...' : 'Save Attendance'}
@@ -243,7 +238,7 @@ const MarkAttendance = () => {
               onChange={(e) => setDepartment(e.target.value)}
               className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium cursor-pointer"
             >
-              {DEPARTMENTS.map((dept) => (
+              {DEPARTMENTS_WITH_ALL.map((dept) => (
                 <option key={dept} value={dept}>
                   {dept}
                 </option>
@@ -261,7 +256,7 @@ const MarkAttendance = () => {
               onChange={(e) => setSemester(e.target.value)}
               className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium cursor-pointer"
             >
-              {SEMESTERS.map((sem) => (
+              {SEMESTERS_WITH_ALL.map((sem) => (
                 <option key={sem} value={sem}>
                   {sem === 'All' ? 'All Semesters' : `Semester ${sem}`}
                 </option>
@@ -318,7 +313,7 @@ const MarkAttendance = () => {
             type="button"
             onClick={handleMarkAllPresent}
             disabled={filteredStudents.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition disabled:opacity-50 cursor-pointer"
           >
             <CheckCheck className="w-3.5 h-3.5" />
             Mark All Present
@@ -327,7 +322,7 @@ const MarkAttendance = () => {
             type="button"
             onClick={handleMarkAllAbsent}
             disabled={filteredStudents.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 transition disabled:opacity-50 cursor-pointer"
           >
             <XCircle className="w-3.5 h-3.5" />
             Mark All Absent
@@ -336,7 +331,7 @@ const MarkAttendance = () => {
             type="button"
             onClick={handleReset}
             disabled={filteredStudents.length === 0}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 transition disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 transition disabled:opacity-50 cursor-pointer"
             title="Reset selections"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -398,7 +393,7 @@ const MarkAttendance = () => {
                             <button
                               type="button"
                               onClick={() => handleSetStatus(student._id, 'Present')}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                                 isPresent
                                   ? 'bg-emerald-600 text-white shadow-xs'
                                   : 'text-slate-600 hover:text-emerald-700 hover:bg-emerald-50'
@@ -412,7 +407,7 @@ const MarkAttendance = () => {
                             <button
                               type="button"
                               onClick={() => handleSetStatus(student._id, 'Absent')}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                                 isAbsent
                                   ? 'bg-rose-600 text-white shadow-xs'
                                   : 'text-slate-600 hover:text-rose-700 hover:bg-rose-50'
@@ -459,7 +454,7 @@ const MarkAttendance = () => {
           <button
             onClick={handleSaveAttendance}
             disabled={saving || loading || filteredStudents.length === 0}
-            className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-sm shadow-blue-500/20 transition disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-sm shadow-blue-500/20 transition disabled:opacity-50 cursor-pointer"
           >
             <Save className="w-4 h-4" />
             {saving ? 'Saving to MongoDB...' : 'Save Attendance'}
@@ -471,4 +466,3 @@ const MarkAttendance = () => {
 };
 
 export default MarkAttendance;
-

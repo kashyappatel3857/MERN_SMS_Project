@@ -1,5 +1,6 @@
 const Student = require('../models/Student');
 const Attendance = require('../models/Attendance');
+const { escapeRegex } = require('../utils/dateHelper');
 
 // @desc    Create new student
 // @route   POST /api/students
@@ -54,9 +55,9 @@ const getStudents = async (req, res, next) => {
 
     const query = {};
 
-    // Search by name or enrollment number
+    // Search by name or enrollment number with ReDoS-safe regex
     if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
+      const searchRegex = new RegExp(escapeRegex(search.trim()), 'i');
       query.$or = [{ name: searchRegex }, { enrollmentNo: searchRegex }];
     }
 
@@ -70,8 +71,10 @@ const getStudents = async (req, res, next) => {
       query.semester = semester.toString().trim();
     }
 
+    const allowedSortFields = ['name', 'enrollmentNo', 'department', 'semester', 'createdAt'];
+    const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
     const sortOrder = order === 'asc' ? 1 : -1;
-    const sortCriteria = { [sortBy]: sortOrder };
+    const sortCriteria = { [safeSortBy]: sortOrder };
 
     const students = await Student.find(query).sort(sortCriteria);
 
@@ -176,7 +179,7 @@ const deleteStudent = async (req, res, next) => {
     await Attendance.deleteMany({ studentId: student._id });
 
     // Remove student
-    await Student.findByIdAndDelete(req.params.id);
+    await student.deleteOne();
 
     res.status(200).json({
       success: true,
@@ -194,4 +197,3 @@ module.exports = {
   updateStudent,
   deleteStudent,
 };
-

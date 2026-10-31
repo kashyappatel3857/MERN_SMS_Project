@@ -2,6 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
+
+// Load environment variables before requiring modules that might use them
+dotenv.config();
+
 const connectDB = require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -9,18 +13,20 @@ const studentRoutes = require('./routes/studentRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 
-// Load environment variables
-dotenv.config();
-
 // Connect to MongoDB
 connectDB();
 
 const app = express();
 
 // Middlewares
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL ? process.env.CLIENT_URL.split(',') : true,
+    credentials: true,
+  })
+);
+app.use(express.json({ limit: '50kb' }));
+app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
@@ -66,4 +72,3 @@ process.on('unhandledRejection', (err) => {
 });
 
 module.exports = app;
-

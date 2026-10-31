@@ -17,17 +17,10 @@ import { reportService } from '../services/api';
 import Loader from '../components/Loader';
 import Modal from '../components/Modal';
 import Notification from '../components/Notification';
-
-const DEPARTMENTS = [
-  'All',
-  'Computer Science',
-  'Information Technology',
-  'Electronics',
-  'Mechanical',
-  'Civil',
-];
-
-const SEMESTERS = ['All', '1', '2', '3', '4', '5', '6', '7', '8'];
+import {
+  DEPARTMENTS_WITH_ALL,
+  SEMESTERS_WITH_ALL,
+} from '../constants/academic';
 
 const getCurrentMonthString = () => {
   const now = new Date();
@@ -83,6 +76,7 @@ const AttendanceReports = () => {
 
   const handleOpenStudentDetail = async (studentId) => {
     try {
+      setSelectedStudentReport(null); // Clear previous student data to avoid flash of stale info
       setModalLoading(true);
       setModalOpen(true);
       const res = await reportService.getStudentReport(studentId);
@@ -135,14 +129,14 @@ const AttendanceReports = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={fetchReports}
-            className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 transition"
+            className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
             title="Refresh reports"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={handlePrint}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold transition"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold transition cursor-pointer"
           >
             <Download className="w-4 h-4" />
             Print / Export
@@ -184,7 +178,7 @@ const AttendanceReports = () => {
             onChange={(e) => setDepartment(e.target.value)}
             className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium cursor-pointer"
           >
-            {DEPARTMENTS.map((dept) => (
+            {DEPARTMENTS_WITH_ALL.map((dept) => (
               <option key={dept} value={dept}>
                 Dept: {dept}
               </option>
@@ -197,7 +191,7 @@ const AttendanceReports = () => {
             onChange={(e) => setSemester(e.target.value)}
             className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium cursor-pointer"
           >
-            {SEMESTERS.map((sem) => (
+            {SEMESTERS_WITH_ALL.map((sem) => (
               <option key={sem} value={sem}>
                 {sem === 'All' ? 'Semester: All' : `Sem: ${sem}`}
               </option>
@@ -212,7 +206,7 @@ const AttendanceReports = () => {
                 setSemester('All');
                 setSearch('');
               }}
-              className="text-xs text-rose-600 hover:text-rose-700 font-medium px-2 py-1 underline"
+              className="text-xs text-rose-600 hover:text-rose-700 font-medium px-2 py-1 underline cursor-pointer"
             >
               Reset Filters
             </button>
@@ -302,7 +296,7 @@ const AttendanceReports = () => {
                             e.stopPropagation();
                             handleOpenStudentDetail(item._id);
                           }}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer"
                           title="View detailed log"
                         >
                           <Eye className="w-4 h-4" />
@@ -435,7 +429,7 @@ const AttendanceReports = () => {
             <div className="text-right pt-2">
               <button
                 onClick={() => setModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
               >
                 Close
               </button>
@@ -448,4 +442,3 @@ const AttendanceReports = () => {
 };
 
 export default AttendanceReports;
-

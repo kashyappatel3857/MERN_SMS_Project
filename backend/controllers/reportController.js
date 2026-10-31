@@ -1,13 +1,6 @@
 const Student = require('../models/Student');
 const Attendance = require('../models/Attendance');
-
-const getTodayFormatted = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+const { getTodayFormatted, escapeRegex, isValidMonth } = require('../utils/dateHelper');
 
 // @desc    Get dashboard metrics & summary
 // @route   GET /api/reports/dashboard
@@ -16,23 +9,45 @@ const getDashboardMetrics = async (req, res, next) => {
   try {
     const today = getTodayFormatted();
 
-    // 1. Total Students
-    const totalStudents = await Student.countDocuments();
+    // Generate past 7 days dates array
+    const past7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      past7Days.push(`${y}-${m}-${day}`);
+    }
 
-    // 2. Today's Present and Absent
-    const todayPresent = await Attendance.countDocuments({
-      date: today,
-      status: 'Present',
-    });
+    // Execute all independent database queries in parallel
+    const [
+      totalStudents,
+      todayPresent,
+      todayAbsent,
+      totalMarkedAllTime,
+      totalPresentAllTime,
+      recentRecords,
+      departmentStats,
+      attendancePast7Days,
+    ] = await Promise.all([
+      Student.countDocuments(),
+      Attendance.countDocuments({ date: today, status: 'Present' }),
+      Attendance.countDocuments({ date: today, status: 'Absent' }),
+      Attendance.countDocuments(),
+      Attendance.countDocuments({ status: 'Present' }),
+      Attendance.find()
+        .populate('studentId', 'name enrollmentNo department semester')
+        .sort({ createdAt: -1 })
+        .limit(6),
+      Student.aggregate([
+        { $group: { _id: '$department', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ]),
+      Attendance.find({ date: { $in: past7Days } }),
+    ]);
 
-    const todayAbsent = await Attendance.countDocuments({
-      date: today,
-      status: 'Absent',
-    });
-
-    // 3. Overall all-time Attendance Percentage
-    const totalMarkedAllTime = await Attendance.countDocuments();
-    const totalPresentAllTime = await Attendance.countDocuments({ status: 'Present' });
+    // Overall all-time Attendance Percentage
     const overallPercentage =
       totalMarkedAllTime > 0
         ? Number(((totalPresentAllTime / totalMarkedAllTime) * 100).toFixed(2))
@@ -45,43 +60,11 @@ const getDashboardMetrics = async (req, res, next) => {
         ? Number(((todayPresent / totalMarkedToday) * 100).toFixed(2))
         : 0;
 
-    // 4. Recent Attendance Records (latest 6 records)
-    const recentRecords = await Attendance.find()
-      .populate('studentId', 'name enrollmentNo department semester')
-      .sort({ createdAt: -1 })
-      .limit(6);
-
-    // 5. Department Breakdown
-    const departmentStats = await Student.aggregate([
-      {
-        $group: {
-          _id: '$department',
-          count: { $sum: 1 },
-        },
-      },
-      { $sort: { count: -1 } },
-    ]);
-
-    // 6. Last 7 Days trend for chart
-    const past7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      past7Days.push(`${y}-${m}-${day}`);
-    }
-
-    const attendancePast7Days = await Attendance.find({
-      date: { $in: past7Days },
-    });
-
+    // Build trend breakdown for the past 7 days
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const trendMap = {};
     past7Days.forEach((dateStr) => {
-      // short label like "Oct 25"
       const parts = dateStr.split('-');
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const label = `${monthNames[parseInt(parts[1], 10) - 1]} ${parts[2]}`;
       trendMap[dateStr] = { date: dateStr, label, present: 0, absent: 0 };
     });
@@ -169,7 +152,7 @@ const getMonthlyReport = async (req, res, next) => {
     if (semester && semester !== 'All') studentQuery.semester = semester.toString();
 
     if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
+      const searchRegex = new RegExp(escapeRegex(search.trim()), 'i');
       studentQuery.$or = [{ name: searchRegex }, { enrollmentNo: searchRegex }];
     }
 
@@ -191,8 +174,13 @@ const getMonthlyReport = async (req, res, next) => {
     };
 
     if (month && month !== 'All') {
-      // month is 'YYYY-MM'
-      attendanceQuery.date = { $regex: new RegExp(`^${month}`) };
+      if (!isValidMonth(month)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid month format (expected YYYY-MM).',
+        });
+      }
+      attendanceQuery.date = { $regex: new RegExp(`^${escapeRegex(month)}`) };
     }
 
     const allRecords = await Attendance.find(attendanceQuery);
@@ -248,4 +236,3 @@ module.exports = {
   getStudentReport,
   getMonthlyReport,
 };
-

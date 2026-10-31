@@ -18,17 +18,12 @@ import { studentService, reportService } from '../services/api';
 import Loader from '../components/Loader';
 import Modal from '../components/Modal';
 import Notification from '../components/Notification';
-
-const DEPARTMENTS = [
-  'All',
-  'Computer Science',
-  'Information Technology',
-  'Electronics',
-  'Mechanical',
-  'Civil',
-];
-
-const SEMESTERS = ['All', '1', '2', '3', '4', '5', '6', '7', '8'];
+import {
+  DEPARTMENTS,
+  SEMESTERS,
+  DEPARTMENTS_WITH_ALL,
+  SEMESTERS_WITH_ALL,
+} from '../constants/academic';
 
 const Students = () => {
   const [students, setStudents] = useState([]);
@@ -101,7 +96,7 @@ const Students = () => {
       email: student.email,
       phone: student.phone,
       department: student.department,
-      semester: student.semester.toString(),
+      semester: (student.semester ?? '').toString(),
     });
     setEditModalOpen(true);
   };
@@ -163,6 +158,7 @@ const Students = () => {
   // View Student Attendance Details
   const handleViewReport = async (student) => {
     try {
+      setViewingStudentReport(null); // Clear stale previous student record
       setViewLoading(true);
       setViewModalOpen(true);
       const res = await reportService.getStudentReport(student._id);
@@ -200,14 +196,14 @@ const Students = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={fetchStudents}
-            className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 transition"
+            className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
             title="Refresh student list"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <Link
             to="/students/add"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm shadow-blue-500/20 transition"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm shadow-blue-500/20 transition cursor-pointer"
           >
             <UserPlus className="w-4 h-4" />
             Add New Student
@@ -242,7 +238,7 @@ const Students = () => {
             onChange={(e) => setSelectedDept(e.target.value)}
             className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium cursor-pointer"
           >
-            {DEPARTMENTS.map((dept) => (
+            {DEPARTMENTS_WITH_ALL.map((dept) => (
               <option key={dept} value={dept}>
                 Dept: {dept}
               </option>
@@ -255,7 +251,7 @@ const Students = () => {
             onChange={(e) => setSelectedSem(e.target.value)}
             className="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium cursor-pointer"
           >
-            {SEMESTERS.map((sem) => (
+            {SEMESTERS_WITH_ALL.map((sem) => (
               <option key={sem} value={sem}>
                 {sem === 'All' ? 'Semester: All' : `Sem: ${sem}`}
               </option>
@@ -269,7 +265,7 @@ const Students = () => {
                 setSelectedDept('All');
                 setSelectedSem('All');
               }}
-              className="text-xs text-rose-600 hover:text-rose-700 font-medium px-2 py-1 underline"
+              className="text-xs text-rose-600 hover:text-rose-700 font-medium px-2 py-1 underline cursor-pointer"
             >
               Reset
             </button>
@@ -327,21 +323,21 @@ const Students = () => {
                           <button
                             onClick={() => handleViewReport(stu)}
                             title="View Attendance Report"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition cursor-pointer"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleOpenEdit(stu)}
                             title="Edit Student Details"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition cursor-pointer"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleOpenDelete(stu)}
                             title="Delete Student"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -420,7 +416,7 @@ const Students = () => {
                 onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
                 className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
               >
-                {DEPARTMENTS.filter((d) => d !== 'All').map((d) => (
+                {DEPARTMENTS.map((d) => (
                   <option key={d} value={d}>
                     {d}
                   </option>
@@ -438,7 +434,7 @@ const Students = () => {
                 onChange={(e) => setEditForm({ ...editForm, semester: e.target.value })}
                 className="w-full px-3.5 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
               >
-                {SEMESTERS.filter((s) => s !== 'All').map((s) => (
+                {SEMESTERS.map((s) => (
                   <option key={s} value={s}>
                     Semester {s}
                   </option>
@@ -477,14 +473,14 @@ const Students = () => {
             <button
               type="button"
               onClick={() => setEditModalOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={editSubmitting}
-              className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition flex items-center gap-1.5 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
             >
               {editSubmitting ? 'Saving Changes...' : 'Save Changes'}
             </button>
@@ -517,7 +513,7 @@ const Students = () => {
             <button
               type="button"
               onClick={() => setDeleteModalOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
             >
               Cancel
             </button>
@@ -525,7 +521,7 @@ const Students = () => {
               type="button"
               onClick={handleConfirmDelete}
               disabled={deleteSubmitting}
-              className="px-4 py-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition disabled:opacity-50"
+              className="px-4 py-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition disabled:opacity-50 cursor-pointer"
             >
               {deleteSubmitting ? 'Deleting...' : 'Yes, Delete'}
             </button>
@@ -629,7 +625,7 @@ const Students = () => {
             <div className="text-right pt-2">
               <button
                 onClick={() => setViewModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition"
+                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
               >
                 Close
               </button>
@@ -642,4 +638,3 @@ const Students = () => {
 };
 
 export default Students;
-

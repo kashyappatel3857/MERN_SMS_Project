@@ -1,21 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { UserPlus, ArrowLeft, Check, AlertCircle } from 'lucide-react';
 import { studentService } from '../services/api';
 import Notification from '../components/Notification';
-
-const DEPARTMENTS = [
-  'Computer Science',
-  'Information Technology',
-  'Electronics',
-  'Mechanical',
-  'Civil',
-];
-
-const SEMESTERS = ['1', '2', '3', '4', '5', '6', '7', '8'];
+import { DEPARTMENTS, SEMESTERS } from '../constants/academic';
 
 const AddStudent = () => {
   const navigate = useNavigate();
+  const redirectTimerRef = useRef(null);
   const [formData, setFormData] = useState({
     name: '',
     enrollmentNo: '',
@@ -27,6 +19,14 @@ const AddStudent = () => {
 
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState(null);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -56,7 +56,7 @@ const AddStudent = () => {
           type: 'success',
           message: 'Student registered successfully!',
         });
-        setTimeout(() => {
+        redirectTimerRef.current = setTimeout(() => {
           navigate('/students');
         }, 1200);
       }
@@ -228,7 +228,7 @@ const AddStudent = () => {
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm shadow-blue-500/20 transition disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm shadow-blue-500/20 transition disabled:opacity-50 cursor-pointer"
             >
               <Check className="w-4 h-4" />
               {loading ? 'Registering...' : 'Register Student'}
@@ -241,4 +241,3 @@ const AddStudent = () => {
 };
 
 export default AddStudent;
-
